@@ -1,0 +1,11 @@
+{
+  "python.defaultInterpreterPath": "/usr/local/python/current/bin/python3",
+  "python.linting.enabled": true,
+  "python.linting.pylintEnabled": false,
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.python",
+    "editor.formatOnSave": true
+  },
+  "pylance.analysis.typeCheckingMode": "standard",
+  "python.analysis.extraPaths": ["${workspaceFolder}"]
+}

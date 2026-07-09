@@ -1,0 +1,165 @@
+# Task 1 Result Appendix
+
+## Supporting SQL: Sales by Category
+```sql
+SELECT TOP 10
+    p.Category,
+    SUM(sol.LineTotal) AS Revenue,
+    SUM(sol.Quantity) AS Qty,
+    COUNT(DISTINCT sol.OrderId) AS Orders
+FROM dbo.SalesOrderLines sol
+JOIN dbo.Products p ON sol.ProductId = p.ProductId
+GROUP BY p.Category
+ORDER BY Revenue DESC, Qty DESC;
+```
+
+## Supporting SQL: Sales by Product
+```sql
+SELECT TOP 10
+    p.ProductId,
+    p.SKU,
+    p.ProductName,
+    p.Category,
+    SUM(sol.LineTotal) AS Revenue,
+    SUM(sol.Quantity) AS Qty,
+    COUNT(DISTINCT sol.OrderId) AS Orders
+FROM dbo.SalesOrderLines sol
+JOIN dbo.Products p ON sol.ProductId = p.ProductId
+GROUP BY p.ProductId, p.SKU, p.ProductName, p.Category
+ORDER BY Revenue DESC, Qty DESC;
+```
+
+## Supporting SQL: Task 2 Support Comparison
+```sql
+SELECT TOP 20
+    p.Category,
+    p.ProductName,
+    p.SKU,
+    COUNT(st.TicketId) AS TicketCount,
+    AVG(CAST(st.SatisfactionScore AS FLOAT)) AS AvgSatisfaction,
+    SUM(CASE WHEN st.Priority = 'High' THEN 1 ELSE 0 END) AS HighPriority,
+    SUM(CASE WHEN st.Priority = 'Medium' THEN 1 ELSE 0 END) AS MediumPriority,
+    SUM(CASE WHEN st.Priority = 'Low' THEN 1 ELSE 0 END) AS LowPriority,
+    SUM(CASE WHEN st.Status = 'Open' THEN 1 ELSE 0 END) AS OpenCount,
+    SUM(CASE WHEN st.Status = 'Closed' THEN 1 ELSE 0 END) AS ClosedCount,
+    SUM(CASE WHEN st.Status = 'Pending' THEN 1 ELSE 0 END) AS PendingCount
+FROM dbo.SupportTickets st
+LEFT JOIN dbo.Products p ON st.RelatedSKU = p.SKU
+WHERE st.RelatedSKU IS NOT NULL
+GROUP BY p.Category, p.ProductName, p.SKU
+ORDER BY TicketCount DESC, AvgSatisfaction ASC;
+```
+
+```sql
+SELECT
+    p.Category,
+    p.ProductName,
+    p.SKU,
+    COUNT(st.TicketId) AS TicketCount,
+    AVG(CAST(st.SatisfactionScore AS FLOAT)) AS AvgSatisfaction,
+    SUM(CASE WHEN st.Priority = 'Critical' THEN 1 ELSE 0 END) AS CriticalPriority,
+    SUM(CASE WHEN st.Priority = 'High' THEN 1 ELSE 0 END) AS HighPriority,
+    SUM(CASE WHEN st.Priority = 'Medium' THEN 1 ELSE 0 END) AS MediumPriority,
+    SUM(CASE WHEN st.Priority = 'Low' THEN 1 ELSE 0 END) AS LowPriority,
+    SUM(CASE WHEN st.Status = 'Open' THEN 1 ELSE 0 END) AS OpenCount,
+    SUM(CASE WHEN st.Status = 'Resolved' THEN 1 ELSE 0 END) AS ResolvedCount,
+    SUM(CASE WHEN st.Status = 'Closed' THEN 1 ELSE 0 END) AS ClosedCount,
+    SUM(CASE WHEN st.Status = 'Pending' THEN 1 ELSE 0 END) AS PendingCount
+FROM dbo.SupportTickets st
+JOIN dbo.Products p ON st.RelatedSKU = p.SKU
+WHERE st.RelatedSKU = 'ZCPTM-SS-M-BW'
+GROUP BY p.Category, p.ProductName, p.SKU;
+```
+
+## Supporting SQL: Task 3 Chat Theme Extraction
+```sql
+SELECT
+    sc.TranscriptId,
+    sc.TicketId,
+    j.seq,
+    j.text
+FROM dbo.SupportChats sc
+CROSS APPLY OPENJSON(sc.MessagesJson)
+WITH (
+    seq int '$.seq',
+    text nvarchar(max) '$.text'
+) j
+JOIN dbo.SupportTickets st ON sc.TicketId = st.TicketId
+WHERE st.RelatedSKU = 'ZCPTM-SS-M-BW'
+ORDER BY sc.TranscriptId, j.seq;
+```
+
+## Supporting SQL: Task 4 Docs Review
+```sql
+SELECT TOP 20
+    DocId,
+    SourceType,
+    SourceId,
+    Title,
+    Body,
+    TagsJson
+FROM dbo.Docs
+WHERE (
+    TagsJson LIKE '%ZCPTM-SS-M-BW%'
+    OR Body LIKE '%ZCPTM-SS-M-BW%'
+    OR Body LIKE '%smart fabric%'
+    OR Body LIKE '%smart fabric product%'
+    OR Body LIKE '%Zava smart fabric%'
+)
+ORDER BY DocId;
+```
+
+```sql
+SELECT
+    SourceType,
+    COUNT(*) AS DocCount
+FROM dbo.Docs
+WHERE (
+    TagsJson LIKE '%ZCPTM-SS-M-BW%'
+    OR Body LIKE '%ZCPTM-SS-M-BW%'
+    OR Body LIKE '%smart fabric%'
+    OR Body LIKE '%smart fabric product%'
+    OR Body LIKE '%Zava smart fabric%'
+)
+GROUP BY SourceType
+ORDER BY SourceType;
+```
+
+## Supporting SQL: Task 5 Similarity Search
+```sql
+EXEC dbo.FindSimilarDocsByDocId @DocId = 39, @TopN = 8;
+```
+
+## Supporting SQL: Task 6 Cluster Analysis
+```sql
+DECLARE @DocId int = 39;
+WITH Similar AS (
+    SELECT DocId, SourceType, SourceId, RelatedSKU, RelatedOrderId, RelatedCustomerId, RelatedTicketId
+    FROM dbo.FindSimilarDocsByDocId(@DocId, 8)
+)
+SELECT
+    s.DocId,
+    s.SourceType,
+    s.SourceId,
+    s.RelatedSKU,
+    s.RelatedOrderId,
+    s.RelatedCustomerId,
+    s.RelatedTicketId,
+    p.Category,
+    p.ProductName,
+    so.OrderType,
+    so.Channel,
+    c.CustomerSegment,
+    c.Country,
+    c.Language,
+    so.ClientName,
+    so.CustomerName
+FROM Similar s
+LEFT JOIN dbo.Products p ON s.RelatedSKU = p.SKU
+LEFT JOIN dbo.SalesOrders so ON s.RelatedOrderId = so.OrderId
+LEFT JOIN dbo.Customers c ON s.RelatedCustomerId = c.CustomerId
+ORDER BY s.DocId;
+```
+
+## Supporting SQL: Task 7 Recommendation Context
+No additional SQL was required beyond the prior analysis; the recommendation is based on the evidence already compiled in Tasks 1 through 6.
